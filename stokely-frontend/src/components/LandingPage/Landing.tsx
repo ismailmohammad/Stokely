@@ -868,30 +868,42 @@ const FeaturesGrid = styled.div`
     gap: 1.25rem;
 `;
 
-const FeatureCard = styled.div`
-    background: #1e1e1e;
+const FeatureCard = styled.div<{ $accent: string }>`
+    background: linear-gradient(160deg, ${p => p.$accent}0d 0%, #1e1e1e 50%);
     border: 1px solid #2a2a2a;
+    border-top: 3px solid ${p => p.$accent};
     border-radius: 12px;
     padding: 1.5rem;
-    transition: transform 0.2s ease;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    box-shadow: 0 -2px 12px ${p => p.$accent}1a;
     &:hover {
-    transform: scale(1.05);
+        border-color: #383838;
+        border-top-color: ${p => p.$accent};
+        box-shadow: 0 -2px 18px ${p => p.$accent}28, 0 8px 28px rgba(0, 0, 0, 0.22);
     }
 `;
 
-const FeatureIcon = styled.div`
-  margin-bottom: 0.75rem;
+const FeatureIcon = styled.div<{ $accent: string }>`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: ${p => p.$accent}1a;
+    border: 1px solid ${p => p.$accent}28;
+    margin-bottom: 1rem;
 
-  svg {
-    width: 28px;
-    height: 28px;
-    stroke-width: 2.2;
-  }
+    svg {
+        width: 20px;
+        height: 20px;
+        stroke-width: 2;
+    }
 `;
 
-const FeatureTitle = styled.h3`
+const FeatureTitle = styled.h3<{ $accent: string }>`
     font-size: 1rem;
-    color: white;
+    color: ${p => p.$accent};
     margin: 0 0 0.5rem;
 `;
 
@@ -1145,60 +1157,60 @@ export default function Landing() {
 
         <LazySection>
           <FeaturesGrid>
-            <FeatureCard>
-              <FeatureIcon>
+            <FeatureCard $accent="#ff9f43">
+              <FeatureIcon $accent="#ff9f43">
                 <Flame color="#ff9f43" />
               </FeatureIcon>
-              <FeatureTitle>Streak Engine + Freeze Protection</FeatureTitle>
+              <FeatureTitle $accent="#ff9f43">Streak Engine + Freeze Protection</FeatureTitle>
               <FeatureText>Build momentum with daily streak tracking and protection mechanics so one bad day does not wipe long progress.</FeatureText>
             </FeatureCard>
-            <FeatureCard>
-              <FeatureIcon>
+            <FeatureCard $accent="#ff6b6b">
+              <FeatureIcon $accent="#ff6b6b">
                 <Clock3 color="#ff6b6b" />
               </FeatureIcon>
-              <FeatureTitle>Curb Habits</FeatureTitle>
+              <FeatureTitle $accent="#ff6b6b">Curb Habits</FeatureTitle>
               <FeatureText>Track habits you are reducing, stay accountable, and measure clean streaks over time.</FeatureText>
             </FeatureCard>
-            <FeatureCard>
-              <FeatureIcon>
+            <FeatureCard $accent="#ffd166">
+              <FeatureIcon $accent="#ffd166">
                 <BellRing color="#ffd166" />
               </FeatureIcon>
-              <FeatureTitle>Reminders by Device</FeatureTitle>
+              <FeatureTitle $accent="#ffd166">Reminders by Device</FeatureTitle>
               <FeatureText>Enable push reminders per device, test delivery, and control which devices can receive notifications.</FeatureText>
             </FeatureCard>
-            <FeatureCard>
-              <FeatureIcon>
-                <KeyRound color="#5da8ff" />
+            <FeatureCard $accent="#22d3ee">
+              <FeatureIcon $accent="#22d3ee">
+                <KeyRound color="#22d3ee" />
               </FeatureIcon>
-              <FeatureTitle>End-to-End Encrypted Vault</FeatureTitle>
+              <FeatureTitle $accent="#22d3ee">End-to-End Encrypted Vault</FeatureTitle>
               <FeatureText>Optionally encrypt habit names and notes with a passphrase-derived key. Your passphrase stays on your devices.</FeatureText>
             </FeatureCard>
-            <FeatureCard>
-              <FeatureIcon>
-                <Smartphone color="#77d2ff" />
+            <FeatureCard $accent="#f472b6">
+              <FeatureIcon $accent="#f472b6">
+                <Smartphone color="#f472b6" />
               </FeatureIcon>
-              <FeatureTitle>Session + Account Controls</FeatureTitle>
+              <FeatureTitle $accent="#f472b6">Session + Account Controls</FeatureTitle>
               <FeatureText>Review active sessions, sign out other devices, export your data, and manage account security from settings.</FeatureText>
             </FeatureCard>
-            <FeatureCard>
-              <FeatureIcon>
+            <FeatureCard $accent="#9ce3be">
+              <FeatureIcon $accent="#9ce3be">
                 <CalendarDays color="#9ce3be" />
               </FeatureIcon>
-              <FeatureTitle>Flexible Scheduling</FeatureTitle>
+              <FeatureTitle $accent="#9ce3be">Flexible Scheduling</FeatureTitle>
               <FeatureText>Use daily, weekday/weekend, or custom recurrence patterns with optional end dates and calendar views.</FeatureText>
             </FeatureCard>
-            <FeatureCard>
-              <FeatureIcon>
-                <ShieldCheck color="#8cc7ff" />
+            <FeatureCard $accent="#2dca8e">
+              <FeatureIcon $accent="#2dca8e">
+                <ShieldCheck color="#2dca8e" />
               </FeatureIcon>
-              <FeatureTitle>More Than a Reminder List</FeatureTitle>
+              <FeatureTitle $accent="#2dca8e">More Than a Reminder List</FeatureTitle>
               <FeatureText>Stokely is built for behavior change, not just one-off tasks: streak visibility, recovery mechanics, and habit-focused workflows keep momentum tangible.</FeatureText>
             </FeatureCard>
-            <FeatureCard>
-              <FeatureIcon>
-                <Lock color="#7ee0bc" />
+            <FeatureCard $accent="#b39dff">
+              <FeatureIcon $accent="#b39dff">
+                <Lock color="#b39dff" />
               </FeatureIcon>
-              <FeatureTitle>Privacy You Can Use Daily</FeatureTitle>
+              <FeatureTitle $accent="#b39dff">Privacy You Can Use Daily</FeatureTitle>
               <FeatureText>Compared with general reminder apps, Stokely gives habit-specific structure plus optional account-wide E2EE and a lockable vault designed around personal routines.</FeatureText>
             </FeatureCard>
           </FeaturesGrid>

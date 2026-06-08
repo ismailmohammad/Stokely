@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Read(//home/**)",
-      "Read(//home/mutex/go/pkg/mod/github.com/go-webauthn/**)"
+      "Read(//home/mutex/go/pkg/mod/github.com/go-webauthn/**)",
+      "Bash(git checkout *)"
     ]
   }
 }
