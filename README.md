@@ -67,6 +67,12 @@ This was mainly built to test the workflow with Codex/Claude to build an all aro
 - Account sessions management (list active sessions, revoke individual sessions, logout others)
 - Email verification + password reset flows
 - Optional Daily Spark toggle
+- Passkey authentication (WebAuthn):
+  - Register passkeys from Settings or via the post-spark prompt
+  - Sign in with Face ID, Touch ID, Windows Hello, or hardware security keys — no password required
+  - Passkeys are discoverable credentials (`residentKey: required`) so they sync via iCloud Keychain, Google Password Manager, or Windows Hello across devices
+  - Per-passkey labels; multiple passkeys per account supported
+  - Sign counter tracking and last-used timestamps per credential
 - Optional account-wide E2EE:
   - passphrase-derived key (PBKDF2 + AES-GCM)
   - encrypted habit names/notes
@@ -76,6 +82,7 @@ This was mainly built to test the workflow with Codex/Claude to build an all aro
 ## Security & Privacy Posture (Current)
 
 - Server-side session auth with CSRF protection on mutating requests
+- Passkey / WebAuthn authentication — challenge-based, replay-safe; no CSRF token needed (origin validated by library)
 - Session cookie hardening controls (`COOKIE_SECURE`, `COOKIE_SAMESITE`, host-only cookie support)
 - Optional encrypted session payload key (`SESSION_ENCRYPTION_KEY`)
 - Privacy minimization:
@@ -265,6 +272,15 @@ See `.env.example` for the complete list.
 | `VAPID_PUBLIC_KEY` | Public VAPID key |
 | `VAPID_PRIVATE_KEY` | Private VAPID key |
 | `VAPID_EMAIL` | Contact email / subscriber subject |
+
+### Passkeys / WebAuthn (Optional)
+
+Leave both unset to disable passkey registration and login entirely.
+
+| Variable | Description |
+|---|---|
+| `WEBAUTHN_RPID` | Effective domain only — no scheme, no port. Dev: `localhost`. Prod: `stokely.quest` |
+| `WEBAUTHN_ORIGINS` | Comma-separated full origins. Dev: `http://localhost:5173`. Prod: `https://stokely.quest` |
 
 ---
 
