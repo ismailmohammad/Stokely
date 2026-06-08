@@ -678,6 +678,7 @@ export default function Dashboard() {
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false);
     const [passkeyPromptDoNotShow, setPasskeyPromptDoNotShow] = useState(false);
+    const [passkeyPromptName, setPasskeyPromptName] = useState('');
     const [passkeyRegistering, setPasskeyRegistering] = useState(false);
     const hasOfferedPasskeyRef = useRef(false);
     const [allVisibleCount, setAllVisibleCount] = useState(ALL_TAB_PAGE_SIZE);
@@ -993,6 +994,7 @@ export default function Dashboard() {
     const dismissPasskeyPrompt = useCallback((forever: boolean) => {
         setShowPasskeyPrompt(false);
         setPasskeyPromptDoNotShow(false);
+        setPasskeyPromptName('');
         if (forever && passkeyPromptDismissedKey) {
             try { localStorage.setItem(passkeyPromptDismissedKey, '1'); } catch { /* ignore */ }
         }
@@ -1001,9 +1003,10 @@ export default function Dashboard() {
     const handlePasskeyPromptRegister = useCallback(async () => {
         setPasskeyRegistering(true);
         try {
-            await registerPasskey('Passkey');
+            await registerPasskey(passkeyPromptName.trim() || 'Passkey');
             setShowPasskeyPrompt(false);
             setPasskeyPromptDoNotShow(false);
+            setPasskeyPromptName('');
             dispatch(setUserInfo({ ...userInfo!, hasPasskeys: true }));
             toast.success('Passkey added — you can manage passkeys in Settings');
         } catch (err: unknown) {
@@ -1012,7 +1015,7 @@ export default function Dashboard() {
         } finally {
             setPasskeyRegistering(false);
         }
-    }, [dispatch, userInfo]);
+    }, [dispatch, passkeyPromptName, userInfo]);
 
     const doToggle = async (habit: HabitType, next: boolean) => {
         setHabits(prev => prev.map(h => h.id === habit.id ? { ...h, complete: next } : h));
@@ -1546,6 +1549,26 @@ export default function Dashboard() {
                             <InstallText style={{ marginTop: '0.5rem', color: '#aaa', fontSize: '0.82rem' }}>
                                 You can add or remove passkeys any time from Settings.
                             </InstallText>
+                            <input
+                                type="text"
+                                placeholder="Label, e.g. MacBook Touch ID (optional)"
+                                value={passkeyPromptName}
+                                onChange={e => setPasskeyPromptName(e.target.value)}
+                                maxLength={120}
+                                disabled={passkeyRegistering}
+                                style={{
+                                    marginTop: '0.85rem',
+                                    width: '100%',
+                                    padding: '0.5rem 0.7rem',
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '1px solid rgba(255,255,255,0.14)',
+                                    borderRadius: '8px',
+                                    color: '#e8e8e8',
+                                    fontSize: '0.84rem',
+                                    boxSizing: 'border-box',
+                                    outline: 'none',
+                                }}
+                            />
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.75rem', color: '#bbb', fontSize: '0.82rem', cursor: 'pointer' }}>
                                 <input
                                     type="checkbox"
