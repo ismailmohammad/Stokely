@@ -51,9 +51,9 @@ type passkeyUser struct {
 	creds []webauthn.Credential
 }
 
-func (p *passkeyUser) WebAuthnID() []byte                      { return []byte(p.u.ID) }
-func (p *passkeyUser) WebAuthnName() string                    { return p.u.Username }
-func (p *passkeyUser) WebAuthnDisplayName() string             { return p.u.Username }
+func (p *passkeyUser) WebAuthnID() []byte                         { return []byte(p.u.ID) }
+func (p *passkeyUser) WebAuthnName() string                       { return p.u.Username }
+func (p *passkeyUser) WebAuthnDisplayName() string                { return p.u.Username }
 func (p *passkeyUser) WebAuthnCredentials() []webauthn.Credential { return p.creds }
 
 func loadPasskeyCredentials(userID string) ([]webauthn.Credential, error) {
@@ -161,7 +161,12 @@ func handlePasskeyRegisterFinish(c *gin.Context) {
 	_ = sess.Save()
 
 	var sd webauthn.SessionData
-	if err := json.Unmarshal([]byte(raw.(string)), &sd); err != nil {
+	rawSession, ok := raw.(string)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid session data"})
+		return
+	}
+	if err := json.Unmarshal([]byte(rawSession), &sd); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid session data"})
 		return
 	}
@@ -300,7 +305,12 @@ func handlePasskeyLoginFinish(c *gin.Context) {
 	_ = sess.Save()
 
 	var sd webauthn.SessionData
-	if err := json.Unmarshal([]byte(raw.(string)), &sd); err != nil {
+	rawSession, ok := raw.(string)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid session data"})
+		return
+	}
+	if err := json.Unmarshal([]byte(rawSession), &sd); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid session data"})
 		return
 	}

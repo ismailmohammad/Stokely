@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "./LoginPage";
 
-// ── Mocks ─────────────────────────────────────────────────────────────────────
+// -- mocks ---------------------------------------------------------------------
 
 const mockState = vi.hoisted(() => ({
   navigateMock: vi.fn(),
@@ -53,9 +53,9 @@ vi.mock("../../redux/userSlice", () => ({
   setUserInfo: (info: unknown) => ({ type: "user/setUserInfo", payload: info }),
 }));
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// -- tests ---------------------------------------------------------------------
 
-describe("LoginPage — passkey button", () => {
+describe("LoginPage - passkey button", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockState.webAuthnAvailable = true;
@@ -141,11 +141,13 @@ describe("LoginPage — passkey button", () => {
       expect(screen.getByRole("button", { name: /log in/i })).toBeDisabled();
     });
 
-    resolve({ id: "cred" });
+    await act(async () => {
+      resolve({ id: "cred" });
+    });
   });
 });
 
-describe("LoginPage — password form", () => {
+describe("LoginPage - password form", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockState.webAuthnAvailable = false;
