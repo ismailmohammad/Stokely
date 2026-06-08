@@ -25,11 +25,11 @@
     "styled-components": "^6.1.11"
   },
   "devDependencies": {
-    "@types/react": "^18.2.66",
-    "@types/react-dom": "^18.2.22",
     "@playwright/test": "^1.54.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^7.2.0",
     "@typescript-eslint/parser": "^7.2.0",
     "@vitejs/plugin-react": "^5.0.0",
@@ -39,6 +39,6 @@
     "jsdom": "^26.1.0",
     "typescript": "^5.2.2",
     "vite": "^7.0.0",
-    "vitest": "^2.1.9"
+    "vitest": "^4.1.8"
   }
 }

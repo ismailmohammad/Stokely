@@ -2,6 +2,8 @@ module stokely/backend
 
 go 1.25.0
 
+toolchain go1.25.11
+
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/gin-contrib/cors v1.7.6

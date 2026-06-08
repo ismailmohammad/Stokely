@@ -244,6 +244,27 @@ func isValidE2EEHabitPayload(name, notes string) bool {
 	return notes == "" || isE2EEEncryptedValue(notes)
 }
 
+func isValidE2EEHabitMutation(currentName, currentNotes string, nextName, nextNotes *string) bool {
+	name := currentName
+	if nextName != nil {
+		name = *nextName
+	}
+	notes := currentNotes
+	if nextNotes != nil {
+		notes = *nextNotes
+	}
+	return isValidE2EEHabitPayload(name, notes)
+}
+
+func validateEncryptedHabitUpdates(updates []e2eeHabitUpdate) error {
+	for _, u := range updates {
+		if !isValidE2EEHabitPayload(u.Name, u.Notes) {
+			return fmt.Errorf("habit %d must contain encrypted name and notes", u.ID)
+		}
+	}
+	return nil
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func dayCode(t time.Time) string {
@@ -1041,6 +1062,10 @@ func updateHabit(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if user.E2EEEnabled && !isValidE2EEHabitMutation(habit.Name, habit.Notes, input.Name, input.Notes) {
+		c.JSON(http.StatusLocked, gin.H{"error": "Vault is locked. Unlock vault before updating habit content while E2EE is enabled"})
+		return
+	}
 
 	if input.Name != nil {
 		if len(*input.Name) == 0 || len(*input.Name) > 500 {
@@ -1470,11 +1495,15 @@ type e2eeHabitUpdate struct {
 func handleE2EEEnable(c *gin.Context) {
 	user := c.MustGet("user").(User)
 	var input struct {
-		Salt     string            `json:"salt" binding:"required"`
-		Verifier string            `json:"verifier" binding:"required"`
+		Salt     string            `json:"salt" binding:"required,max=64"`
+		Verifier string            `json:"verifier" binding:"required,max=512"`
 		Habits   []e2eeHabitUpdate `json:"habits"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := validateEncryptedHabitUpdates(input.Habits); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -1514,30 +1543,46 @@ func handleE2EEEnable(c *gin.Context) {
 func handleE2EEChangePassphrase(c *gin.Context) {
 	user := c.MustGet("user").(User)
 	var input struct {
-		Salt     string            `json:"salt" binding:"required"`
-		Verifier string            `json:"verifier" binding:"required"`
+		Salt     string            `json:"salt" binding:"required,max=64"`
+		Verifier string            `json:"verifier" binding:"required,max=512"`
 		Habits   []e2eeHabitUpdate `json:"habits"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := e2eeBulkUpdateHabits(db, user.ID, input.Habits); err != nil {
+	if err := validateEncryptedHabitUpdates(input.Habits); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	res := db.Exec(
+	tx := db.Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start passphrase transaction"})
+		return
+	}
+	if err := e2eeBulkUpdateHabits(tx, user.ID, input.Habits); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	res := tx.Exec(
 		"UPDATE users SET e2ee_salt = ?, e2ee_verifier = ? WHERE id = ?",
 		input.Salt,
 		input.Verifier,
 		user.ID,
 	)
 	if res.Error != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update passphrase: " + res.Error.Error()})
 		return
 	}
 	if res.RowsAffected == 0 {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Passphrase update matched no rows"})
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit passphrase update"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Passphrase updated"})

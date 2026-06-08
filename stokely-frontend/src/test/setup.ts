@@ -6,10 +6,7 @@ class IntersectionObserverMock implements IntersectionObserver {
   readonly rootMargin = "0px";
   readonly thresholds: ReadonlyArray<number> = [0];
 
-  constructor(
-    private readonly callback: IntersectionObserverCallback,
-    _options?: IntersectionObserverInit,
-  ) {}
+  constructor(private readonly callback: IntersectionObserverCallback) {}
 
   disconnect(): void {}
 
@@ -34,7 +31,7 @@ class IntersectionObserverMock implements IntersectionObserver {
     return [];
   }
 
-  unobserve(_target: Element): void {}
+  unobserve(): void {}
 }
 
 vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);

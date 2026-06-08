@@ -19,10 +19,14 @@ services:
     environment:
       DB_DSN: ${DB_DSN}
       SESSION_SECRET: ${SESSION_SECRET}
+      SESSION_ENCRYPTION_KEY: ${SESSION_ENCRYPTION_KEY}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://stokely.quest}
       WEBAUTHN_RPID: ${WEBAUTHN_RPID:-stokely.quest}
       WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:-https://stokely.quest}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
       PORT: "9090"
+      GIN_MODE: release
       COOKIE_SECURE: "true"
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
