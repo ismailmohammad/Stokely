@@ -26,8 +26,7 @@ func passkeyTestRouter(handler gin.HandlerFunc) *gin.Engine {
 	return r
 }
 
-
-// ── wauthn-nil guards ─────────────────────────────────────────────────────────
+// -- wauthn-nil guards ----------------------------------------------------------
 
 func TestHandlePasskeyRegisterBegin_NilWebAuthn(t *testing.T) {
 	saved := wauthn
@@ -92,7 +91,7 @@ func TestHandlePasskeyLoginFinish_NilWebAuthn(t *testing.T) {
 	}
 }
 
-// ── missing-session guards ───────────────────────���───────────────────────���────
+// -- missing-session guards -----------------------------------------------------
 
 func TestHandlePasskeyRegisterFinish_NoSession(t *testing.T) {
 	saved := wauthn
@@ -141,8 +140,7 @@ func TestHandlePasskeyLoginFinish_NoSession(t *testing.T) {
 	}
 }
 
-// ── invalid session data ──────────────────────────────────────────────────────
-
+// -- invalid session data -------------------------------------------------------
 
 func TestHandlePasskeyRegisterFinish_CorruptSession(t *testing.T) {
 	saved := wauthn
@@ -182,9 +180,117 @@ func TestHandlePasskeyRegisterFinish_CorruptSession(t *testing.T) {
 	if w2.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", w2.Code)
 	}
+	if !strings.Contains(w2.Body.String(), "Invalid session data") {
+		t.Fatalf("body = %q, expected invalid session error", w2.Body.String())
+	}
 }
 
-// ── rename validation ─────────────────────────────────────────────────────────
+func TestHandlePasskeyRegisterFinish_NonStringSession(t *testing.T) {
+	saved := wauthn
+	wauthn = &webauthn.WebAuthn{}
+	t.Cleanup(func() { wauthn = saved })
+
+	r := gin.New()
+	store := cookie.NewStore([]byte("test-secret-32-bytes-minimum-len"))
+	r.Use(sessions.Sessions("test-session", store))
+
+	r.POST("/seed", func(c *gin.Context) {
+		s := sessions.Default(c)
+		s.Set(webAuthnRegSessionKey, 42)
+		_ = s.Save()
+		c.Status(http.StatusNoContent)
+	})
+	r.POST("/test", func(c *gin.Context) {
+		c.Set("user", User{ID: "user-1", Username: "testuser"})
+		handlePasskeyRegisterFinish(c)
+	})
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/seed", nil))
+
+	w2 := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", w.Header().Get("Set-Cookie"))
+	r.ServeHTTP(w2, req)
+
+	if w2.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", w2.Code)
+	}
+	if !strings.Contains(w2.Body.String(), "Invalid session data") {
+		t.Fatalf("body = %q, expected invalid session error", w2.Body.String())
+	}
+}
+
+func TestHandlePasskeyLoginFinish_CorruptSession(t *testing.T) {
+	saved := wauthn
+	wauthn = &webauthn.WebAuthn{}
+	t.Cleanup(func() { wauthn = saved })
+
+	r := gin.New()
+	store := cookie.NewStore([]byte("test-secret-32-bytes-minimum-len"))
+	r.Use(sessions.Sessions("test-session", store))
+
+	r.POST("/seed", func(c *gin.Context) {
+		s := sessions.Default(c)
+		s.Set(webAuthnLoginSessionKey, "not-valid-json")
+		_ = s.Save()
+		c.Status(http.StatusNoContent)
+	})
+	r.POST("/test", handlePasskeyLoginFinish)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/seed", nil))
+
+	w2 := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", w.Header().Get("Set-Cookie"))
+	r.ServeHTTP(w2, req)
+
+	if w2.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", w2.Code)
+	}
+	if !strings.Contains(w2.Body.String(), "Invalid session data") {
+		t.Fatalf("body = %q, expected invalid session error", w2.Body.String())
+	}
+}
+
+func TestHandlePasskeyLoginFinish_NonStringSession(t *testing.T) {
+	saved := wauthn
+	wauthn = &webauthn.WebAuthn{}
+	t.Cleanup(func() { wauthn = saved })
+
+	r := gin.New()
+	store := cookie.NewStore([]byte("test-secret-32-bytes-minimum-len"))
+	r.Use(sessions.Sessions("test-session", store))
+
+	r.POST("/seed", func(c *gin.Context) {
+		s := sessions.Default(c)
+		s.Set(webAuthnLoginSessionKey, 42)
+		_ = s.Save()
+		c.Status(http.StatusNoContent)
+	})
+	r.POST("/test", handlePasskeyLoginFinish)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/seed", nil))
+
+	w2 := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", w.Header().Get("Set-Cookie"))
+	r.ServeHTTP(w2, req)
+
+	if w2.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", w2.Code)
+	}
+	if !strings.Contains(w2.Body.String(), "Invalid session data") {
+		t.Fatalf("body = %q, expected invalid session error", w2.Body.String())
+	}
+}
+
+// -- rename validation ----------------------------------------------------------
 
 func TestHandleRenamePasskey_InvalidID(t *testing.T) {
 	t.Parallel()
@@ -228,7 +334,7 @@ func TestHandleRenamePasskey_EmptyName(t *testing.T) {
 	}
 }
 
-// ── delete validation ───��─────────────────────────────────────���───────────────
+// -- delete validation ----------------------------------------------------------
 
 func TestHandleDeletePasskey_InvalidID(t *testing.T) {
 	t.Parallel()
@@ -250,7 +356,7 @@ func TestHandleDeletePasskey_InvalidID(t *testing.T) {
 	}
 }
 
-// ── updatePasskeyAfterLogin ─────────────────────────���─────────────────────────
+// -- updatePasskeyAfterLogin ----------------------------------------------------
 
 func TestUpdatePasskeyAfterLogin_NilCredential(t *testing.T) {
 	t.Parallel()
@@ -258,22 +364,35 @@ func TestUpdatePasskeyAfterLogin_NilCredential(t *testing.T) {
 	updatePasskeyAfterLogin("user-1", nil)
 }
 
-// ── initWebAuthn ──────────────────────────────────────────────────────────────
+// -- initWebAuthn ---------------------------------------------------------------
 
 func TestInitWebAuthn_NoEnvVars(t *testing.T) {
 	saved := wauthn
 	t.Cleanup(func() { wauthn = saved })
+	t.Setenv("WEBAUTHN_RPID", "")
 
 	// With no WEBAUTHN_RPID set, initWebAuthn leaves wauthn nil.
 	wauthn = nil
 	initWebAuthn()
-	// WEBAUTHN_RPID is not set in the test environment, so wauthn stays nil.
 	if wauthn != nil {
 		t.Fatal("expected wauthn to remain nil when WEBAUTHN_RPID is not set")
 	}
 }
 
-// ── session key constants ──────────────────��────────────────────────���─────────
+func TestInitWebAuthn_Configured(t *testing.T) {
+	saved := wauthn
+	t.Cleanup(func() { wauthn = saved })
+	t.Setenv("WEBAUTHN_RPID", "localhost")
+	t.Setenv("WEBAUTHN_ORIGINS", "http://localhost:5173, https://app.example.test")
+
+	wauthn = nil
+	initWebAuthn()
+	if wauthn == nil {
+		t.Fatal("expected wauthn to be configured when RPID and origins are set")
+	}
+}
+
+// -- session key constants ------------------------------------------------------
 
 func TestWebAuthnSessionKeyConstants(t *testing.T) {
 	t.Parallel()

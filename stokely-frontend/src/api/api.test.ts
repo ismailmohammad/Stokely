@@ -50,7 +50,7 @@ describe("api.passkeys", () => {
     document.cookie = "stokely-csrf=test-csrf-token; path=/";
   });
 
-  it("loginBegin POSTs to /api/auth/passkey/begin without CSRF (unauthenticated)", async () => {
+  it("loginBegin POSTs to /api/auth/passkey/begin with credentials", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       text: async () => JSON.stringify({ publicKey: {} }),
@@ -61,6 +61,8 @@ describe("api.passkeys", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/auth/passkey/begin");
     expect((options as RequestInit).method).toBe("POST");
+    expect((options as RequestInit).credentials).toBe("include");
+    expect((options?.headers as Record<string, string>)["X-CSRF-Token"]).toBe("test-csrf-token");
   });
 
   it("loginFinish POSTs assertion body to /api/auth/passkey/finish", async () => {
@@ -119,6 +121,18 @@ describe("api.passkeys", () => {
     expect((options as RequestInit).body).toBe(JSON.stringify(credential));
   });
 
+  it("registerFinish URL-encodes reserved characters in the passkey name", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ id: 1, name: "Phone & Tablet" }),
+    } as Response);
+
+    await api.passkeys.registerFinish("Phone & Tablet", {});
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/passkeys/register/finish?name=Phone%20%26%20Tablet");
+  });
+
   it("list GETs /api/passkeys without CSRF", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
@@ -161,4 +175,3 @@ describe("api.passkeys", () => {
     expect((options as RequestInit).body).toBe(JSON.stringify({ name: "Work Laptop" }));
   });
 });
-

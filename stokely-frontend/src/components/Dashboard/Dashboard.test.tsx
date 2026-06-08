@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Dashboard from "./Dashboard";
 
 const mockState = vi.hoisted(() => ({
@@ -163,7 +163,7 @@ async function flushMicrotasks() {
   });
 }
 
-describe("Dashboard — passkey prompt", () => {
+describe("Dashboard - passkey prompt", () => {
   const SPARK_TIMEOUT = 4000;
 
   beforeEach(() => {
@@ -278,16 +278,24 @@ describe("Dashboard — passkey prompt", () => {
     try { localStorage.removeItem("stokely_passkey_prompt_dismissed_v1_user-2"); } catch { /* ignore */ }
   });
 
-  it("calls registerPasskey and shows success toast when 'Add Passkey' is clicked", async () => {
+  it("registers with the entered label and updates hasPasskeys", async () => {
     await renderAndAdvancePastSpark();
     expect(screen.getByText(/sign in faster with a passkey/i)).toBeInTheDocument();
 
+    fireEvent.change(screen.getByPlaceholderText(/label/i), { target: { value: "  Phone Passkey  " } });
     fireEvent.click(screen.getByRole("button", { name: /add passkey/i }));
     await flushMicrotasks();
 
-    expect(mockState.registerPasskeyMock).toHaveBeenCalled();
+    expect(mockState.registerPasskeyMock).toHaveBeenCalledWith("Phone Passkey");
     expect(mockState.toastSuccessMock).toHaveBeenCalledWith(
       expect.stringContaining("Passkey added"),
     );
+    expect(mockState.dispatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "user/setUserInfo",
+        payload: expect.objectContaining({ hasPasskeys: true }),
+      }),
+    );
+    expect(screen.queryByText(/sign in faster with a passkey/i)).not.toBeInTheDocument();
   });
 });
