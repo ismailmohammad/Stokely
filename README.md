@@ -84,7 +84,7 @@ This was mainly built to test the workflow with Codex/Claude to build an all aro
 - Server-side session auth with CSRF protection on mutating requests
 - Passkey / WebAuthn authentication — challenge-based, replay-safe; no CSRF token needed (origin validated by library)
 - Session cookie hardening controls (`COOKIE_SECURE`, `COOKIE_SAMESITE`, host-only cookie support)
-- Optional encrypted session payload key (`SESSION_ENCRYPTION_KEY`)
+- Encrypted session payloads in production (`SESSION_ENCRYPTION_KEY`)
 - Privacy minimization:
   - legacy raw session/push metadata scrubbed at startup
   - session persistence avoids storing raw IP/user-agent values
@@ -254,6 +254,7 @@ See `.env.example` for the complete list.
 |---|---|
 | `DB_DSN` | PostgreSQL connection string |
 | `SESSION_SECRET` | 32+ char session signing secret |
+| `SESSION_ENCRYPTION_KEY` | Base64 key (16/24/32 byte decoded); required when `GIN_MODE=release` |
 | `FRONTEND_ORIGIN` | Allowed frontend origin |
 | `COOKIE_SECURE` | `true` in production |
 
@@ -261,7 +262,6 @@ See `.env.example` for the complete list.
 
 | Variable | Description |
 |---|---|
-| `SESSION_ENCRYPTION_KEY` | Base64 key (16/24/32 byte decoded) for encrypted session payloads |
 | `COOKIE_DOMAIN` | Optional cookie domain (leave empty for host-only) |
 | `COOKIE_SAMESITE` | `lax` / `strict` / `none` |
 

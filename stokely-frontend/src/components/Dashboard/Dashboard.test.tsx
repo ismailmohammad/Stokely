@@ -33,7 +33,7 @@ const mockState = vi.hoisted(() => ({
   mockE2EE: {
     key: null as CryptoKey | null,
     isUnlocked: false,
-    unlock: async (_key: CryptoKey) => {},
+    unlock: async () => {},
   },
   registerPasskeyMock: vi.fn(),
   webAuthnAvailable: true,
@@ -234,7 +234,8 @@ describe("Dashboard - passkey prompt", () => {
   });
 
   it("does not show the passkey prompt when hasPasskeys is undefined (unknown)", async () => {
-    const { hasPasskeys: _, ...noHasPasskeys } = mockState.mockUserInfo as Record<string, unknown>;
+    const noHasPasskeys = { ...(mockState.mockUserInfo as Record<string, unknown>) };
+    delete noHasPasskeys.hasPasskeys;
     mockState.mockUserInfo = noHasPasskeys;
     mockState.apiMock.auth.me.mockResolvedValue(mockState.mockUserInfo);
     await renderAndAdvancePastSpark();

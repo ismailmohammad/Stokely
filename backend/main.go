@@ -411,6 +411,9 @@ func parseSameSite(v string) http.SameSite {
 func buildSessionStore(secret string) cookie.Store {
 	encryptionKeyB64 := getEnv("SESSION_ENCRYPTION_KEY", "")
 	if encryptionKeyB64 == "" {
+		if strings.EqualFold(getEnv("GIN_MODE", ""), "release") {
+			log.Fatal("SESSION_ENCRYPTION_KEY is required when GIN_MODE=release")
+		}
 		log.Println("SESSION_ENCRYPTION_KEY not set: session payload will be signed but not encrypted")
 		return cookie.NewStore([]byte(secret))
 	}

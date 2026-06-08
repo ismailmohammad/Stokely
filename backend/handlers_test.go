@@ -97,6 +97,54 @@ func TestIsValidE2EEHabitPayload(t *testing.T) {
 	}
 }
 
+func TestIsValidE2EEHabitMutation(t *testing.T) {
+	t.Parallel()
+
+	encryptedName := "e2ee:v1:name"
+	encryptedNotes := "e2ee:v1:notes"
+	plainName := "Read 20 pages"
+	plainNotes := "Personal note"
+
+	if !isValidE2EEHabitMutation(encryptedName, encryptedNotes, nil, nil) {
+		t.Fatal("unchanged encrypted habit should be valid")
+	}
+	if !isValidE2EEHabitMutation(encryptedName, encryptedNotes, &encryptedName, nil) {
+		t.Fatal("encrypted name update should be valid")
+	}
+	if isValidE2EEHabitMutation(encryptedName, encryptedNotes, &plainName, nil) {
+		t.Fatal("plaintext name update should be invalid")
+	}
+	if isValidE2EEHabitMutation(encryptedName, encryptedNotes, nil, &plainNotes) {
+		t.Fatal("plaintext notes update should be invalid")
+	}
+	if isValidE2EEHabitMutation(plainName, "", nil, nil) {
+		t.Fatal("existing plaintext habit should be invalid while E2EE is enabled")
+	}
+}
+
+func TestValidateEncryptedHabitUpdates(t *testing.T) {
+	t.Parallel()
+
+	if err := validateEncryptedHabitUpdates([]e2eeHabitUpdate{
+		{ID: 1, Name: "e2ee:v1:name", Notes: ""},
+		{ID: 2, Name: "e2ee:v1:name2", Notes: "e2ee:v1:notes"},
+	}); err != nil {
+		t.Fatalf("encrypted updates returned unexpected error: %v", err)
+	}
+
+	if err := validateEncryptedHabitUpdates([]e2eeHabitUpdate{
+		{ID: 3, Name: "Plain", Notes: "e2ee:v1:notes"},
+	}); err == nil {
+		t.Fatal("plaintext name update should fail validation")
+	}
+
+	if err := validateEncryptedHabitUpdates([]e2eeHabitUpdate{
+		{ID: 4, Name: "e2ee:v1:name", Notes: "plain notes"},
+	}); err == nil {
+		t.Fatal("plaintext notes update should fail validation")
+	}
+}
+
 func TestDayCodeAndContainsDay(t *testing.T) {
 	t.Parallel()
 

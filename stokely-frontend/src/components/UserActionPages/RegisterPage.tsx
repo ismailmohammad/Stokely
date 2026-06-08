@@ -32,8 +32,8 @@ const RegisterPage = () => {
                 toast.success("Account created!");
             }
             navigate("/dashboard");
-        } catch (err: any) {
-            toast.error(err.message || "Registration failed");
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Registration failed");
         } finally {
             setLoading(false);
         }
