@@ -20,6 +20,8 @@ services:
       DB_DSN: ${DB_DSN}
       SESSION_SECRET: ${SESSION_SECRET}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://stokely.quest}
+      WEBAUTHN_RPID: ${WEBAUTHN_RPID:-stokely.quest}
+      WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:-https://stokely.quest}
       PORT: "9090"
       COOKIE_SECURE: "true"
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
