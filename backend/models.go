@@ -103,3 +103,13 @@ type UserSession struct {
 	UserAgent  string    `gorm:"type:text;default:''" json:"userAgent"`
 	IPAddress  string    `gorm:"type:varchar(64);default:''" json:"ipAddress"`
 }
+
+// Passkey stores a WebAuthn credential registered by a user.
+type Passkey struct {
+	ID             uint       `gorm:"primaryKey" json:"id"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	UserID         string     `gorm:"type:uuid;not null;index" json:"-"`
+	CredentialData string     `gorm:"type:text;not null" json:"-"` // JSON-encoded webauthn.Credential
+	Name           string     `gorm:"type:varchar(120);default:'Passkey'" json:"name"`
+	LastUsedAt     *time.Time `json:"lastUsedAt,omitempty"`
+}

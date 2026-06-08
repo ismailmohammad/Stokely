@@ -26,6 +26,14 @@ export interface UserInfo {
     dailySparkEnabled?: boolean;
     e2eeEnabled?: boolean;
     e2eeSetupPrompt?: boolean;
+    hasPasskeys?: boolean;
+}
+
+export interface PasskeyInfo {
+    id: number;
+    name: string;
+    createdAt: string;
+    lastUsedAt?: string;
 }
 
 export type DashboardView = 'daily' | 'all' | 'calendar' | 'streak' | 'achievements';

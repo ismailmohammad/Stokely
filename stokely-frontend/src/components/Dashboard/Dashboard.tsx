@@ -13,6 +13,7 @@ import { setUserInfo } from "../../redux/userSlice";
 import type { RootState } from "../../redux/store";
 import { useE2EE } from "../../context/E2EEContext";
 import { decryptRecursively, encrypt, generateSalt, deriveKey, makeVerifier, isEncrypted } from "../../utils/e2ee";
+import { registerPasskey, isWebAuthnAvailable } from "../../utils/passkey";
 import VaultUnlockModal from "../VaultUnlockModal";
 
 import CubeRed from '../../assets/cube-logo-red.png';
@@ -64,6 +65,7 @@ function randomItem<T>(items: T[]): T {
 const ALL_TAB_PAGE_SIZE = 20;
 const ACHIEVEMENT_SEEN_KEY_PREFIX = 'stokely_seen_achievements_v1';
 const INSTALL_PROMPT_DISMISSED_KEY_PREFIX = 'stokely_install_prompt_dismissed_v1';
+const PASSKEY_PROMPT_DISMISSED_KEY_PREFIX = 'stokely_passkey_prompt_dismissed_v1';
 const DAILY_SPARK_IMAGES = [KindleIdeaLeft, KindleIdeaRight];
 const ACHIEVEMENT_ORDER: AchievementType[] = [
     { key: 'first_completion', title: 'First Completion', description: 'Complete your first habit log.', unlocked: false },
@@ -674,6 +676,10 @@ export default function Dashboard() {
     const [showInstallPrompt, setShowInstallPrompt] = useState(false);
     const [installPlatform, setInstallPlatform] = useState<'ios' | 'android' | null>(null);
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false);
+    const [passkeyPromptDoNotShow, setPasskeyPromptDoNotShow] = useState(false);
+    const [passkeyRegistering, setPasskeyRegistering] = useState(false);
+    const hasOfferedPasskeyRef = useRef(false);
     const [allVisibleCount, setAllVisibleCount] = useState(ALL_TAB_PAGE_SIZE);
     const [e2eePassphrase, setE2EEPassphrase] = useState('');
     const [e2eePassphraseConfirm, setE2EEPassphraseConfirm] = useState('');
@@ -695,6 +701,9 @@ export default function Dashboard() {
         : null;
     const installPromptDismissedKey = userInfo?.id
         ? `${INSTALL_PROMPT_DISMISSED_KEY_PREFIX}_${userInfo.id}`
+        : null;
+    const passkeyPromptDismissedKey = userInfo?.id
+        ? `${PASSKEY_PROMPT_DISMISSED_KEY_PREFIX}_${userInfo.id}`
         : null;
 
     const [logoMap] = useState<Map<number, string>>(new Map());
@@ -847,8 +856,11 @@ export default function Dashboard() {
         };
     }, [dismissWelcomeOverlay, showWelcomeOverlay]);
 
+    const [sparkJustCompleted, setSparkJustCompleted] = useState(false);
+
     const dismissDailySparkOverlay = useCallback(() => {
         setShowDailySparkOverlay(false);
+        setSparkJustCompleted(true);
     }, []);
 
     const dismissInstallPrompt = useCallback(() => {
@@ -952,9 +964,22 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (!showDailySparkOverlay || showWelcomeOverlay) return;
-        const timer = window.setTimeout(() => setShowDailySparkOverlay(false), 1250);
+        const timer = window.setTimeout(() => dismissDailySparkOverlay(), 4000);
         return () => window.clearTimeout(timer);
-    }, [showDailySparkOverlay, showWelcomeOverlay]);
+    }, [dismissDailySparkOverlay, showDailySparkOverlay, showWelcomeOverlay]);
+
+    useEffect(() => {
+        if (!sparkJustCompleted) return;
+        setSparkJustCompleted(false);
+        if (!userInfo?.id || userInfo.hasPasskeys !== false) return;
+        if (!isWebAuthnAvailable() || !passkeyPromptDismissedKey) return;
+        if (hasOfferedPasskeyRef.current) return;
+        try {
+            if (localStorage.getItem(passkeyPromptDismissedKey) === '1') return;
+        } catch { return; }
+        hasOfferedPasskeyRef.current = true;
+        setShowPasskeyPrompt(true);
+    }, [sparkJustCompleted, userInfo?.id, userInfo?.hasPasskeys, passkeyPromptDismissedKey]);
 
     useEffect(() => {
         if (!showDailySparkOverlay || showWelcomeOverlay) return;
@@ -964,6 +989,30 @@ export default function Dashboard() {
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [dismissDailySparkOverlay, showDailySparkOverlay, showWelcomeOverlay]);
+
+    const dismissPasskeyPrompt = useCallback((forever: boolean) => {
+        setShowPasskeyPrompt(false);
+        setPasskeyPromptDoNotShow(false);
+        if (forever && passkeyPromptDismissedKey) {
+            try { localStorage.setItem(passkeyPromptDismissedKey, '1'); } catch { /* ignore */ }
+        }
+    }, [passkeyPromptDismissedKey]);
+
+    const handlePasskeyPromptRegister = useCallback(async () => {
+        setPasskeyRegistering(true);
+        try {
+            await registerPasskey('Passkey');
+            setShowPasskeyPrompt(false);
+            setPasskeyPromptDoNotShow(false);
+            dispatch(setUserInfo({ ...userInfo!, hasPasskeys: true }));
+            toast.success('Passkey added — you can manage passkeys in Settings');
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name === 'NotAllowedError') return; // user cancelled
+            toast.error(err instanceof Error ? err.message : 'Failed to add passkey');
+        } finally {
+            setPasskeyRegistering(false);
+        }
+    }, [dispatch, userInfo]);
 
     const doToggle = async (habit: HabitType, next: boolean) => {
         setHabits(prev => prev.map(h => h.id === habit.id ? { ...h, complete: next } : h));
@@ -1480,6 +1529,48 @@ export default function Dashboard() {
                                     Install
                                 </InstallBtn>
                             )}
+                        </InstallActions>
+                    </WelcomeCard>
+                </WelcomeOverlay>
+            )}
+
+            {showPasskeyPrompt && !showWelcomeOverlay && !showDailySparkOverlay && (
+                <WelcomeOverlay onClick={() => dismissPasskeyPrompt(passkeyPromptDoNotShow)}>
+                    <WelcomeCard onClick={e => e.stopPropagation()}>
+                        <WelcomeBubble>
+                            <InstallTitle>Sign in faster with a Passkey</InstallTitle>
+                            <InstallText>
+                                Use Face ID, fingerprint, or your device PIN instead of a password.
+                                Passkeys sync to your other devices automatically.
+                            </InstallText>
+                            <InstallText style={{ marginTop: '0.5rem', color: '#aaa', fontSize: '0.82rem' }}>
+                                You can add or remove passkeys any time from Settings.
+                            </InstallText>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.75rem', color: '#bbb', fontSize: '0.82rem', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={passkeyPromptDoNotShow}
+                                    onChange={e => setPasskeyPromptDoNotShow(e.target.checked)}
+                                    style={{ accentColor: '#2dca8e' }}
+                                />
+                                Don't show me this again
+                            </label>
+                        </WelcomeBubble>
+                        <InstallActions>
+                            <WelcomeDismissBtn
+                                type="button"
+                                onClick={() => dismissPasskeyPrompt(passkeyPromptDoNotShow)}
+                                disabled={passkeyRegistering}
+                            >
+                                Not now
+                            </WelcomeDismissBtn>
+                            <InstallBtn
+                                type="button"
+                                onClick={() => { void handlePasskeyPromptRegister(); }}
+                                disabled={passkeyRegistering}
+                            >
+                                {passkeyRegistering ? 'Setting up…' : 'Add Passkey'}
+                            </InstallBtn>
                         </InstallActions>
                     </WelcomeCard>
                 </WelcomeOverlay>

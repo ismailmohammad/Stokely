@@ -1,4 +1,4 @@
-import type { HabitType, UserInfo, DashboardView, StreakDetail, AchievementType, PushSubscriptionDevice, UserSession } from '../types/habit';
+import type { HabitType, UserInfo, DashboardView, StreakDetail, AchievementType, PushSubscriptionDevice, UserSession, PasskeyInfo } from '../types/habit';
 
 const BASE = '/api';
 
@@ -106,6 +106,21 @@ export const api = {
         exportData: () => req<unknown>('/user/export'),
         deleteAccount: (password: string) =>
             req<void>('/user/account', { method: 'DELETE', body: JSON.stringify({ password }) }),
+    },
+    passkeys: {
+        list: () => req<PasskeyInfo[]>('/passkeys'),
+        registerBegin: () => req<{ publicKey: Record<string, unknown> }>('/passkeys/register/begin', { method: 'POST' }),
+        registerFinish: (name: string, credential: Record<string, unknown>) =>
+            req<{ id: number; name: string }>(`/passkeys/register/finish?name=${encodeURIComponent(name)}`, {
+                method: 'POST',
+                body: JSON.stringify(credential),
+            }),
+        rename: (id: number, name: string) =>
+            req<void>(`/passkeys/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+        delete: (id: number) => req<void>(`/passkeys/${id}`, { method: 'DELETE' }),
+        loginBegin: () => req<{ publicKey: Record<string, unknown> }>('/auth/passkey/begin', { method: 'POST' }),
+        loginFinish: (assertion: Record<string, unknown>) =>
+            req<UserInfo>('/auth/passkey/finish', { method: 'POST', body: JSON.stringify(assertion) }),
     },
     e2ee: {
         status: () => req<{ enabled: boolean; salt?: string; verifier?: string }>('/e2ee'),
