@@ -75,7 +75,7 @@ func main() {
 
 	enforceUUIDUserIDSchema()
 
-	if err := db.AutoMigrate(&User{}, &Habit{}, &HabitLog{}, &PushSubscription{}, &StreakFreeze{}, &UserSession{}, &EmailToken{}); err != nil {
+	if err := db.AutoMigrate(&User{}, &Habit{}, &HabitLog{}, &PushSubscription{}, &StreakFreeze{}, &UserSession{}, &EmailToken{}, &Passkey{}); err != nil {
 		log.Fatal("Failed to run schema migration:", err)
 	}
 	// Safety net: ensure E2EE columns exist even if AutoMigrate missed them on existing tables.
@@ -141,6 +141,7 @@ END $$;
 		log.Fatal("Failed to scrub legacy push metadata:", err)
 	}
 	seedInitialStreakFreezes()
+	initWebAuthn()
 
 	router := gin.Default()
 	// Trust only private RFC1918 ranges — the backend is reachable only from
@@ -217,6 +218,8 @@ END $$;
 			auth.DELETE("/email", requireAuth, requireCSRF, handleRemoveEmail)
 			auth.POST("/password/forgot", handleForgotPassword)
 			auth.POST("/password/reset", handleResetPassword)
+			auth.POST("/passkey/begin", handlePasskeyLoginBegin)
+			auth.POST("/passkey/finish", handlePasskeyLoginFinish)
 		}
 
 		habits := api.Group("/habits")
@@ -254,6 +257,16 @@ END $$;
 			sessionsGroup.GET("", handleListSessions)
 			sessionsGroup.DELETE("/:id", requireCSRF, handleDeleteSession)
 			sessionsGroup.POST("/logout-others", requireCSRF, handleLogoutOtherSessions)
+		}
+
+		passkeys := api.Group("/passkeys")
+		passkeys.Use(requireAuth)
+		{
+			passkeys.GET("", handleListPasskeys)
+			passkeys.POST("/register/begin", requireCSRF, handlePasskeyRegisterBegin)
+			passkeys.POST("/register/finish", requireCSRF, handlePasskeyRegisterFinish)
+			passkeys.PUT("/:id", requireCSRF, handleRenamePasskey)
+			passkeys.DELETE("/:id", requireCSRF, handleDeletePasskey)
 		}
 
 		push := api.Group("/push")

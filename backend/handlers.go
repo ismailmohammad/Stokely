@@ -741,6 +741,7 @@ func handleLogin(c *gin.Context) {
 
 	showWelcome := isWelcomePending(&user)
 	e2eeSetupPrompt := consumeE2EESetupPrompt(&user)
+	passkeyCount, _ := countUserPasskeys(user.ID)
 	c.JSON(http.StatusOK, gin.H{
 		"id":                user.ID,
 		"username":          user.Username,
@@ -750,6 +751,7 @@ func handleLogin(c *gin.Context) {
 		"dailySparkEnabled": user.DailySparkEnabled,
 		"e2eeEnabled":       user.E2EEEnabled,
 		"e2eeSetupPrompt":   e2eeSetupPrompt,
+		"hasPasskeys":       passkeyCount > 0,
 	})
 }
 
@@ -770,6 +772,7 @@ func handleMe(c *gin.Context) {
 	user := c.MustGet("user").(User)
 	showWelcome := isWelcomePending(&user)
 	e2eeSetupPrompt := consumeE2EESetupPrompt(&user)
+	passkeyCount, _ := countUserPasskeys(user.ID)
 	c.JSON(http.StatusOK, gin.H{
 		"id":                user.ID,
 		"username":          user.Username,
@@ -779,6 +782,7 @@ func handleMe(c *gin.Context) {
 		"dailySparkEnabled": user.DailySparkEnabled,
 		"e2eeEnabled":       user.E2EEEnabled,
 		"e2eeSetupPrompt":   e2eeSetupPrompt,
+		"hasPasskeys":       passkeyCount > 0,
 	})
 }
 

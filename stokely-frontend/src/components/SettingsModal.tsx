@@ -5,13 +5,14 @@ import toast from 'react-hot-toast';
 import { api } from '../api/api';
 import { clearUserInfo, setUserInfo } from '../redux/userSlice';
 import type { RootState } from '../redux/store';
-import type { PushSubscriptionDevice, UserSession } from '../types/habit';
+import type { PushSubscriptionDevice, UserSession, PasskeyInfo } from '../types/habit';
 import { syncPushSubscriptionOnDevice } from '../utils/pushNotifications';
 import { useE2EE } from '../context/E2EEContext';
 import { generateSalt, deriveKey, makeVerifier, checkVerifier, encrypt, decryptRecursively, isEncrypted } from '../utils/e2ee';
+import { registerPasskey, isWebAuthnAvailable, isPasskeySupported } from '../utils/passkey';
 import './SettingsModal.css';
 
-type Props = { onClose: () => void; initialSection?: 'e2ee' };
+type Props = { onClose: () => void; initialSection?: 'e2ee' | 'passkeys' };
 
 export default function SettingsModal({ onClose, initialSection }: Props) {
     const dispatch = useDispatch();
@@ -40,6 +41,16 @@ export default function SettingsModal({ onClose, initialSection }: Props) {
     const [sessions, setSessions] = useState<UserSession[]>([]);
     const [sessionsLoading, setSessionsLoading] = useState(false);
     const [logoutOthersLoading, setLogoutOthersLoading] = useState(false);
+
+    // Passkeys
+    const passkeySectionRef = useRef<HTMLElement>(null);
+    const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
+    const [passkeysLoading, setPasskeysLoading] = useState(false);
+    const [passkeyRegistering, setPasskeyRegistering] = useState(false);
+    const [passkeyName, setPasskeyName] = useState('');
+    const [passkeyAddOpen, setPasskeyAddOpen] = useState(false);
+    // null = still checking, true/false = resolved
+    const [passkeySupported, setPasskeySupported] = useState<boolean | null>(isWebAuthnAvailable() ? null : false);
 
     const loadSessions = async () => {
         setSessionsLoading(true);
@@ -103,7 +114,57 @@ export default function SettingsModal({ onClose, initialSection }: Props) {
         if (initialSection === 'e2ee' && e2eeSectionRef.current) {
             e2eeSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+        if (initialSection === 'passkeys' && passkeySectionRef.current) {
+            passkeySectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }, [initialSection]);
+
+    const loadPasskeys = async () => {
+        setPasskeysLoading(true);
+        try {
+            setPasskeys(await api.passkeys.list());
+        } catch {
+            toast.error('Failed to load passkeys');
+        } finally {
+            setPasskeysLoading(false);
+        }
+    };
+
+    const handleAddPasskey = async () => {
+        if (!isWebAuthnAvailable()) {
+            toast.error('Passkeys are not supported in this browser');
+            return;
+        }
+        setPasskeyRegistering(true);
+        try {
+            const name = passkeyName.trim() || 'Passkey';
+            await registerPasskey(name);
+            toast.success('Passkey added');
+            setPasskeyAddOpen(false);
+            setPasskeyName('');
+            dispatch(setUserInfo({ ...userInfo!, hasPasskeys: true }));
+            await loadPasskeys();
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name !== 'NotAllowedError') {
+                toast.error(err.message || 'Failed to add passkey');
+            }
+        } finally {
+            setPasskeyRegistering(false);
+        }
+    };
+
+    const handleDeletePasskey = async (id: number) => {
+        try {
+            await api.passkeys.delete(id);
+            const next = passkeys.filter(p => p.id !== id);
+            setPasskeys(next);
+            if (next.length === 0) {
+                dispatch(setUserInfo({ ...userInfo!, hasPasskeys: false }));
+            }
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Failed to delete passkey');
+        }
+    };
 
     const loadSubscriptions = async () => {
         setPushLoading(true);
@@ -219,7 +280,13 @@ export default function SettingsModal({ onClose, initialSection }: Props) {
     useEffect(() => {
         void loadSubscriptions();
         void loadSessions();
+        void loadPasskeys();
     }, []);
+
+    useEffect(() => {
+        if (passkeySupported !== null) return;
+        void isPasskeySupported().then(setPasskeySupported);
+    }, [passkeySupported]);
 
     const handleEnableOnThisDevice = async () => {
         setPushSyncLoading(true);
@@ -438,6 +505,85 @@ export default function SettingsModal({ onClose, initialSection }: Props) {
                     >
                         {pwLoading ? 'Updating…' : 'Update Password'}
                     </button>
+                </section>
+
+                {/* Passkeys */}
+                <section className="settings-section" ref={passkeySectionRef}>
+                    <h3 className="settings-section-title">Passkeys</h3>
+                    <p className="settings-desc">
+                        Sign in without a password using Face ID, Touch ID, or a hardware security key.
+                    </p>
+                    {passkeysLoading ? (
+                        <p className="settings-desc">Loading passkeys…</p>
+                    ) : passkeys.length > 0 ? (
+                        <div className="settings-device-list">
+                            {passkeys.map(pk => (
+                                <div key={pk.id} className="settings-device-item">
+                                    <div className="settings-device-meta">
+                                        <strong>{pk.name}</strong>
+                                        <span>Added: {new Date(pk.createdAt).toLocaleDateString()}</span>
+                                        {pk.lastUsedAt && (
+                                            <span>Last used: {new Date(pk.lastUsedAt).toLocaleDateString()}</span>
+                                        )}
+                                    </div>
+                                    <div className="settings-device-actions">
+                                        <button
+                                            type="button"
+                                            className="settings-btn settings-btn--secondary"
+                                            onClick={() => void handleDeletePasskey(pk.id)}
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="settings-desc">No passkeys registered yet.</p>
+                    )}
+                    {passkeySupported === false ? (
+                        <p className="settings-desc passkey-unsupported">
+                            Passkeys are not supported in this browser.
+                        </p>
+                    ) : passkeyAddOpen ? (
+                        <div className="passkey-add-form">
+                            <input
+                                type="text"
+                                className="settings-input"
+                                placeholder="Label (e.g. MacBook Touch ID)"
+                                value={passkeyName}
+                                onChange={e => setPasskeyName(e.target.value)}
+                                maxLength={120}
+                                autoFocus
+                            />
+                            <div className="passkey-add-actions">
+                                <button
+                                    type="button"
+                                    className="settings-btn settings-btn--secondary"
+                                    onClick={() => { setPasskeyAddOpen(false); setPasskeyName(''); }}
+                                    disabled={passkeyRegistering}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    className="settings-btn settings-btn--primary"
+                                    onClick={() => void handleAddPasskey()}
+                                    disabled={passkeyRegistering}
+                                >
+                                    {passkeyRegistering ? 'Waiting for authenticator…' : 'Register Passkey'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            className="settings-btn settings-btn--primary"
+                            onClick={() => setPasskeyAddOpen(true)}
+                        >
+                            Add Passkey
+                        </button>
+                    )}
                 </section>
 
                 {/* Email */}
